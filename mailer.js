@@ -1,36 +1,49 @@
 require('dotenv').config();
-const dns = require('dns');
+const dns = require('dns').promises;
 const nodemailer = require('nodemailer');
-
-// Force IPv4 DNS resolution across the process to prevent cloud ENETUNREACH errors on IPv6
-if (dns.setDefaultResultOrder) {
-  dns.setDefaultResultOrder('ipv4first');
-}
 
 const EMAIL_USER = process.env.EMAIL_USER || process.env.EMAIL || 'dummixyz123@gmail.com';
 const EMAIL_PASS = process.env.EMAIL_PASS || process.env.SMTP_PASS || process.env.GMAIL_APP_PASSWORD || 'enpi qwer jcud uzcf';
 
-// Maintain a persistent singleton connection pool across all Next.js API requests
-function getOrCreateTransporter() {
-  if (globalThis._gentrobytePooledTransporter) {
-    return globalThis._gentrobytePooledTransporter;
+// Cache resolved IPv4 host to guarantee zero IPv6 lookup attempts on Render / AWS containers
+let cachedIpv4Host = null;
+let lastDnsResolution = 0;
+
+async function getIpv4SmtpHost() {
+  const now = Date.now();
+  if (cachedIpv4Host && now - lastDnsResolution < 10 * 60 * 1000) {
+    return cachedIpv4Host;
   }
 
+  try {
+    const addresses = await dns.resolve4('smtp.gmail.com');
+    if (addresses && addresses.length > 0) {
+      cachedIpv4Host = addresses[0];
+      lastDnsResolution = now;
+      return cachedIpv4Host;
+    }
+  } catch (err) {
+    console.warn('[MAILER] DNS resolve4 warning, falling back to default:', err.message);
+  }
+
+  return 'smtp.gmail.com';
+}
+
+async function createIpv4Transporter(port = 465, secure = true) {
+  const ipHost = await getIpv4SmtpHost();
   const cleanPass = (EMAIL_PASS || '').replace(/\s+/g, '');
 
-  const transporter = nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 465,
-    secure: true, // Use SSL for direct fast connection
-    family: 4, // Strictly force IPv4 (resolves ENETUNREACH on Render/AWS containers)
-    pool: true, // Re-use open sockets to avoid multi-second TLS handshakes on every send
-    maxConnections: 5,
-    maxMessages: 100,
+  return nodemailer.createTransport({
+    host: ipHost,
+    port,
+    secure,
+    servername: 'smtp.gmail.com', // Crucial: sets TLS SNI to match Google certificate
     auth: {
       user: EMAIL_USER,
       pass: cleanPass,
     },
     tls: {
+      servername: 'smtp.gmail.com',
       rejectUnauthorized: true,
       minVersion: 'TLSv1.2',
     },
@@ -38,9 +51,6 @@ function getOrCreateTransporter() {
     greetingTimeout: 10000,
     socketTimeout: 15000,
   });
-
-  globalThis._gentrobytePooledTransporter = transporter;
-  return transporter;
 }
 
 function generateOtp() {
@@ -56,91 +66,71 @@ async function sendOtpEmail(recipientEmail) {
   let liveDelivered = false;
   let deliveryError = null;
 
-  try {
-    const transporter = getOrCreateTransporter();
+  const mailOptions = {
+    from: `"Gentrobyte Admissions" <${EMAIL_USER}>`,
+    to: recipientEmail,
+    subject: `[${otp}] Your Gentrobyte Verification Code`,
+    priority: 'high',
+    headers: {
+      'X-Priority': '1 (Highest)',
+      'X-MSMail-Priority': 'High',
+      Importance: 'High',
+    },
+    text: `Your Gentrobyte verification code is: ${otp}\n\nThis single-use code is valid for 10 minutes.\n\nIf you did not request this code, please disregard this email.\n\nBest regards,\nGentrobyte Admissions Team`,
+    html: `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 520px; margin: 0 auto; padding: 32px 24px; border: 1px solid #e2e8f0; border-radius: 16px; background-color: #ffffff;">
+        <div style="text-align: center; margin-bottom: 24px;">
+          <div style="display: inline-block; width: 44px; height: 44px; background: #2563eb; color: #ffffff; border-radius: 12px; font-size: 22px; font-weight: 800; line-height: 44px;">G</div>
+          <h2 style="color: #0f172a; margin: 12px 0 2px 0; font-size: 20px; font-weight: 800; letter-spacing: -0.5px;">Gentrobyte Technologies</h2>
+          <p style="color: #64748b; font-size: 12px; margin: 0; font-weight: 600;">Admissions &amp; Talent Verification</p>
+        </div>
 
-    const mailOptions = {
-      from: `"Gentrobyte Admissions" <${EMAIL_USER}>`,
-      to: recipientEmail,
-      subject: `[${otp}] Your Gentrobyte Verification Code`,
-      priority: 'high',
-      headers: {
-        'X-Priority': '1 (Highest)',
-        'X-MSMail-Priority': 'High',
-        Importance: 'High',
-      },
-      text: `Your Gentrobyte verification code is: ${otp}\n\nThis single-use code is valid for 10 minutes.\n\nIf you did not request this code, please disregard this email.\n\nBest regards,\nGentrobyte Admissions Team`,
-      html: `
-        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 520px; margin: 0 auto; padding: 32px 24px; border: 1px solid #e2e8f0; border-radius: 16px; background-color: #ffffff;">
-          <div style="text-align: center; margin-bottom: 24px;">
-            <div style="display: inline-block; width: 44px; height: 44px; background: #2563eb; color: #ffffff; border-radius: 12px; font-size: 22px; font-weight: 800; line-height: 44px;">G</div>
-            <h2 style="color: #0f172a; margin: 12px 0 2px 0; font-size: 20px; font-weight: 800; letter-spacing: -0.5px;">Gentrobyte Technologies</h2>
-            <p style="color: #64748b; font-size: 12px; margin: 0; font-weight: 600;">Admissions &amp; Talent Verification</p>
-          </div>
+        <p style="color: #334155; font-size: 14px; line-height: 1.6; margin-bottom: 16px;">
+          Hello,
+        </p>
+        <p style="color: #334155; font-size: 14px; line-height: 1.6; margin-bottom: 20px;">
+          Use the official One-Time Password (OTP) below to authenticate your candidate profile:
+        </p>
 
-          <p style="color: #334155; font-size: 14px; line-height: 1.6; margin-bottom: 16px;">
-            Hello,
-          </p>
-          <p style="color: #334155; font-size: 14px; line-height: 1.6; margin-bottom: 20px;">
-            Use the official One-Time Password (OTP) below to authenticate your candidate profile:
-          </p>
+        <div style="background-color: #f8fafc; border: 2px dashed #93c5fd; border-radius: 12px; padding: 20px; text-align: center; margin-bottom: 24px;">
+          <span style="font-size: 36px; font-weight: 900; letter-spacing: 8px; color: #1d4ed8; font-family: monospace;">${otp}</span>
+          <p style="color: #64748b; font-size: 11px; margin: 8px 0 0 0; font-weight: 600;">Valid for 10 minutes • Single Use Only</p>
+        </div>
 
-          <div style="background-color: #f8fafc; border: 2px dashed #93c5fd; border-radius: 12px; padding: 20px; text-align: center; margin-bottom: 24px;">
-            <span style="font-size: 36px; font-weight: 900; letter-spacing: 8px; color: #1d4ed8; font-family: monospace;">${otp}</span>
-            <p style="color: #64748b; font-size: 11px; margin: 8px 0 0 0; font-weight: 600;">Valid for 10 minutes • Single Use Only</p>
-          </div>
-
-          <div style="background-color: #eff6ff; border-left: 4px solid #2563eb; padding: 12px 16px; border-radius: 8px; margin-bottom: 24px;">
-            <p style="color: #1e40af; font-size: 12px; margin: 0; line-height: 1.5;">
-              <strong>Security Notice:</strong> Gentrobyte staff will never ask for your verification code. If you did not initiate this request, you can safely ignore this email.
-            </p>
-          </div>
-
-          <hr style="border: none; border-top: 1px solid #f1f5f9; margin: 20px 0;" />
-          <p style="color: #94a3b8; font-size: 11px; text-align: center; margin: 0;">
-            © 2026 Gentrobyte Technologies Inc. • Automated Admissions Dispatcher
+        <div style="background-color: #eff6ff; border-left: 4px solid #2563eb; padding: 12px 16px; border-radius: 8px; margin-bottom: 24px;">
+          <p style="color: #1e40af; font-size: 12px; margin: 0; line-height: 1.5;">
+            <strong>Security Notice:</strong> Gentrobyte staff will never ask for your verification code. If you did not initiate this request, you can safely ignore this email.
           </p>
         </div>
-      `,
-    };
 
-    const result = await transporter.sendMail(mailOptions);
-    console.log(`[MAILER SUCCESS] OTP email dispatched to ${recipientEmail} (ID: ${result.messageId})`);
+        <hr style="border: none; border-top: 1px solid #f1f5f9; margin: 20px 0;" />
+        <p style="color: #94a3b8; font-size: 11px; text-align: center; margin: 0;">
+          © 2026 Gentrobyte Technologies Inc. • Automated Admissions Dispatcher
+        </p>
+      </div>
+    `,
+  };
+
+  // Strategy 1: Direct IPv4 SSL on Port 465
+  try {
+    const transporter465 = await createIpv4Transporter(465, true);
+    const result = await transporter465.sendMail(mailOptions);
+    console.log(`[MAILER SUCCESS] OTP dispatched to ${recipientEmail} via IPv4 SSL 465 (ID: ${result.messageId})`);
     liveDelivered = true;
   } catch (error) {
     deliveryError = error.message;
-    console.warn(`[GENTROBYTE MAILER NOTICE] Primary SSL delivery failed (${error.message}). Attempting port 587 fallback...`);
+    console.warn(`[MAILER WARNING] IPv4 Port 465 failed (${error.message}). Attempting IPv4 Port 587 fallback...`);
 
-    // Fallback attempt with port 587 (TLS over IPv4) if port 465 is filtered by host
+    // Strategy 2: Direct IPv4 STARTTLS on Port 587
     try {
-      const fallbackTransporter = nodemailer.createTransport({
-        host: 'smtp.gmail.com',
-        port: 587,
-        secure: false,
-        family: 4, // Strictly force IPv4 on fallback as well
-        auth: {
-          user: EMAIL_USER,
-          pass: (EMAIL_PASS || '').replace(/\s+/g, ''),
-        },
-        connectionTimeout: 10000,
-        greetingTimeout: 10000,
-        socketTimeout: 15000,
-      });
-
-      const fallbackOptions = {
-        from: `"Gentrobyte Admissions" <${EMAIL_USER}>`,
-        to: recipientEmail,
-        subject: `[${otp}] Your Gentrobyte Verification Code`,
-        text: `Your Gentrobyte verification code is: ${otp}\n\nValid for 10 minutes.`,
-      };
-
-      await fallbackTransporter.sendMail(fallbackOptions);
+      const transporter587 = await createIpv4Transporter(587, false);
+      const result587 = await transporter587.sendMail(mailOptions);
+      console.log(`[MAILER SUCCESS] OTP dispatched to ${recipientEmail} via IPv4 TLS 587 (ID: ${result587.messageId})`);
       liveDelivered = true;
       deliveryError = null;
-      console.log(`[MAILER SUCCESS] Fallback delivery successful to ${recipientEmail}`);
     } catch (fallbackError) {
-      deliveryError = `${error.message}; Fallback: ${fallbackError.message}`;
-      console.error(`[MAILER FATAL] Both delivery strategies failed: ${deliveryError}`);
+      deliveryError = `SSL 465: ${error.message}; TLS 587: ${fallbackError.message}`;
+      console.error(`[MAILER FATAL] Both IPv4 routes failed: ${deliveryError}`);
     }
   }
 
@@ -153,7 +143,7 @@ async function sendConfirmationEmail(recipientEmail, { applicationId, fullName, 
   }
 
   try {
-    const transporter = getOrCreateTransporter();
+    const transporter = await createIpv4Transporter(465, true);
 
     const mailOptions = {
       from: `"Gentrobyte Admissions" <${EMAIL_USER}>`,
