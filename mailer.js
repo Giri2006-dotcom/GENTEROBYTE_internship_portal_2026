@@ -1,5 +1,11 @@
 require('dotenv').config();
+const dns = require('dns');
 const nodemailer = require('nodemailer');
+
+// Force IPv4 DNS resolution across the process to prevent cloud ENETUNREACH errors on IPv6
+if (dns.setDefaultResultOrder) {
+  dns.setDefaultResultOrder('ipv4first');
+}
 
 const EMAIL_USER = process.env.EMAIL_USER || process.env.EMAIL || 'dummixyz123@gmail.com';
 const EMAIL_PASS = process.env.EMAIL_PASS || process.env.SMTP_PASS || process.env.GMAIL_APP_PASSWORD || 'enpi qwer jcud uzcf';
@@ -16,6 +22,7 @@ function getOrCreateTransporter() {
     host: 'smtp.gmail.com',
     port: 465,
     secure: true, // Use SSL for direct fast connection
+    family: 4, // Strictly force IPv4 (resolves ENETUNREACH on Render/AWS containers)
     pool: true, // Re-use open sockets to avoid multi-second TLS handshakes on every send
     maxConnections: 5,
     maxMessages: 100,
@@ -27,9 +34,9 @@ function getOrCreateTransporter() {
       rejectUnauthorized: true,
       minVersion: 'TLSv1.2',
     },
-    connectionTimeout: 8000,
-    greetingTimeout: 8000,
-    socketTimeout: 10000,
+    connectionTimeout: 10000,
+    greetingTimeout: 10000,
+    socketTimeout: 15000,
   });
 
   globalThis._gentrobytePooledTransporter = transporter;
@@ -104,16 +111,20 @@ async function sendOtpEmail(recipientEmail) {
     deliveryError = error.message;
     console.warn(`[GENTROBYTE MAILER NOTICE] Primary SSL delivery failed (${error.message}). Attempting port 587 fallback...`);
 
-    // Fallback attempt with port 587 if port 465 is filtered by host
+    // Fallback attempt with port 587 (TLS over IPv4) if port 465 is filtered by host
     try {
       const fallbackTransporter = nodemailer.createTransport({
         host: 'smtp.gmail.com',
         port: 587,
         secure: false,
+        family: 4, // Strictly force IPv4 on fallback as well
         auth: {
           user: EMAIL_USER,
           pass: (EMAIL_PASS || '').replace(/\s+/g, ''),
         },
+        connectionTimeout: 10000,
+        greetingTimeout: 10000,
+        socketTimeout: 15000,
       });
 
       const fallbackOptions = {

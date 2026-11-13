@@ -1,4 +1,8 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
+import dns from 'dns';
+if (dns.setDefaultResultOrder) {
+  dns.setDefaultResultOrder('ipv4first');
+}
 import { findUserByEmail, findUserByName } from '../../lib/userStore';
 import { checkRateLimit, getClientIp, assertSafeInput } from '../../lib/security';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
