@@ -16,6 +16,7 @@ interface InternshipCardProps {
   skills: string[];
   benefits: string[];
   type: 'frontend' | 'backend' | 'marketing' | 'design' | 'other';
+  domain?: string;
 }
 
 const InternshipCard: React.FC<InternshipCardProps> = ({
@@ -29,6 +30,7 @@ const InternshipCard: React.FC<InternshipCardProps> = ({
   skills,
   benefits,
   type,
+  domain,
 }) => {
   const getTypeColor = () => {
     switch (type) {
@@ -151,7 +153,7 @@ const InternshipCard: React.FC<InternshipCardProps> = ({
       {/* Card Footer */}
       <div className="px-6 sm:px-8 pb-6 sm:pb-8 mt-auto">
         <Link
-          href="/apply"
+          href={`/apply?domain=${encodeURIComponent(domain || title)}`}
           className="group/btn w-full bg-navy-900 hover:bg-primary-600 text-white px-5 sm:px-6 py-3.5 sm:py-4 rounded-2xl font-bold transition-all duration-300 flex items-center justify-center space-x-3 shadow-xl shadow-navy-900/10 hover:shadow-primary-600/30 active:scale-95"
         >
           <span className="uppercase tracking-widest text-xs">Apply for this Role</span>

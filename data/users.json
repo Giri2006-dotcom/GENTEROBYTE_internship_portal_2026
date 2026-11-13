@@ -1,0 +1,12 @@
+[
+  {
+    "id": "REC-001",
+    "name": "Gentrobyte Talent Acquisition",
+    "email": "recruiter@gentrobyte.com",
+    "role": "recruiter",
+    "passwordHash": "148e87fe901b51eea8f1bc6dd952948457b335398d39d67bb6be171d7483fd383b263d4d1fc606816e43fd594dec6036a4fa1f9400835015dad7154cad8ead0b",
+    "passwordSalt": "d556ac278ef24a5d51fac3e6a1aceb57",
+    "createdAt": "2026-11-13T07:19:35.191Z",
+    "updatedAt": "2026-11-13T07:19:35.191Z"
+  }
+]

@@ -77,7 +77,9 @@ const Footer: React.FC = () => {
                 { name: 'About Gentrobyte', href: '/about' },
                 { name: 'Internships', href: '/internships' },
                 { name: 'Achievements', href: '/achievements' },
-                { name: 'Apply Now', href: '/apply' }
+                { name: 'Apply Now', href: '/apply' },
+                { name: 'Track Application', href: '/track' },
+                { name: 'Recruiter Portal', href: '/recruiter/login' },
               ].map((link) => (
                 <li key={link.name}>
                   <Link

@@ -5,8 +5,8 @@ import React from 'react';
 
 export default function MobilePreviewWrapper({ children }: { children: React.ReactNode }) {
   const searchParams = useSearchParams();
-  const isMobileView = searchParams.get('view') === 'mobile';
-  const isLandscape = searchParams.get('orient') === 'landscape';
+  const isMobileView = searchParams?.get('view') === 'mobile';
+  const isLandscape = searchParams?.get('orient') === 'landscape';
 
   if (isMobileView) {
     return (

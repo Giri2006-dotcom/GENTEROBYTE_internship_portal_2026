@@ -11,6 +11,7 @@ import {
   HiChevronDown,
   HiExclamationCircle,
 } from 'react-icons/hi';
+import { generateApplicationPdf } from '@/lib/pdfGenerator';
 
 interface FormData {
   // Step 1: Basic Details
@@ -107,45 +108,27 @@ const ApplyNew: React.FC = () => {
 
   const downloadPdf = async () => {
     try {
-      const { jsPDF } = await import('jspdf');
-      const doc = new jsPDF();
-      const lines: string[] = [];
-      lines.push('Gentrobyte Internship Application');
-      lines.push('Application ID: ' + applicationId);
-      lines.push('');
-      lines.push('Personal Details');
-      lines.push('Name: ' + formData.fullName);
-      lines.push('Email: ' + formData.email);
-      lines.push('WhatsApp: ' + formData.whatsapp);
-      lines.push('Gender: ' + formData.gender);
-      lines.push('Country: ' + formData.country);
-      lines.push('');
-      lines.push('Academic Details');
-      lines.push('College Mail: ' + formData.collegeMail);
-      lines.push('Degree Program: ' + formData.degree);
-      lines.push('Branch: ' + formData.branch);
-      lines.push('College: ' + formData.college + ' (' + formData.graduationYear + ')');
-      lines.push('');
-      lines.push('Professional Links');
-      lines.push('GitHub: ' + formData.githubUrl);
-      lines.push('Portfolio: ' + formData.portfolioUrl);
-      lines.push('');
-      lines.push('Skills & Motivation');
-      lines.push('Skills: ' + formData.skills);
-      lines.push('Why Gentrobyte: ' + formData.whyApply);
-
-      let y = 14;
-      doc.setFontSize(12);
-      for (const line of lines) {
-        const split = doc.splitTextToSize(line, 180);
-        doc.text(split, 14, y);
-        y += (split.length * 6) + 4;
-        if (y > 280) {
-          doc.addPage();
-          y = 14;
-        }
-      }
-      doc.save(`Gentrobyte-Application-${applicationId}.pdf`);
+      const doc = generateApplicationPdf({
+        applicationId: applicationId || 'GB-2026-APPLICANT',
+        fullName: formData.fullName || 'APPLICANT',
+        email: formData.email,
+        gender: formData.gender,
+        whatsapp: formData.whatsapp,
+        country: formData.country,
+        college: formData.college,
+        collegeMail: formData.collegeMail,
+        degree: formData.degree,
+        branch: formData.branch,
+        graduationYear: formData.graduationYear,
+        domain: formData.domain || 'Engineering Track',
+        githubUrl: formData.githubUrl,
+        portfolioUrl: formData.portfolioUrl,
+        skills: formData.skills,
+        whyApply: formData.whyApply,
+        status: 'Under Review',
+        submittedAt: new Date().toISOString(),
+      });
+      doc.save(`Gentrobyte-Application-${applicationId || 'receipt'}.pdf`);
     } catch (err) {
       console.error(err);
       alert('Failed to generate PDF.');
