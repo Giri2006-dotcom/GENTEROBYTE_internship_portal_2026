@@ -97,7 +97,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     // If live dispatch failed
-    return res.status(502).json({
+    return res.status(400).json({
       success: false,
       message: `Failed to dispatch verification code to ${cleanEmail}. ${result.error ? `(${result.error})` : 'Please verify that your email address is correct and can receive emails.'}`,
       liveDelivered: false,
@@ -105,7 +105,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   } catch (error: unknown) {
     const err = error as Error;
     console.error('[SEND-OTP ERROR]:', err);
-    return res.status(500).json({
+    return res.status(400).json({
       success: false,
       message: err.message || 'Failed to dispatch verification code. Please try again.',
     });

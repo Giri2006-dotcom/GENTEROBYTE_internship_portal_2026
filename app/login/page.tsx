@@ -12,7 +12,7 @@ import {
   HiCheckCircle,
   HiKey,
 } from 'react-icons/hi';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth, AuthUser } from '@/context/AuthContext';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -54,7 +54,21 @@ export default function LoginPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: email.trim().toLowerCase(), purpose: 'signin' }),
       });
-      const data = await res.json();
+
+      const contentType = res.headers.get('content-type') || '';
+      let data: { success?: boolean; message?: string } = {};
+
+      if (contentType.includes('application/json')) {
+        data = await res.json();
+      } else {
+        const text = await res.text();
+        throw new Error(
+          res.status === 502 || res.status === 504 || res.status === 503
+            ? 'The server is currently starting up or restarting. Please try again in 15 seconds.'
+            : text.replace(/<[^>]*>?/gm, '').trim().substring(0, 150) || `Server error (${res.status})`
+        );
+      }
+
       if (!res.ok || !data.success) {
         throw new Error(data.message || 'Failed to dispatch verification code.');
       }
@@ -95,14 +109,29 @@ export default function LoginPage() {
         body: JSON.stringify(payload),
       });
 
-      const data = await res.json();
+      const contentType = res.headers.get('content-type') || '';
+      let data: { success?: boolean; message?: string; token?: string; user?: AuthUser } = {};
+
+      if (contentType.includes('application/json')) {
+        data = await res.json();
+      } else {
+        const text = await res.text();
+        throw new Error(
+          res.status === 502 || res.status === 504 || res.status === 503
+            ? 'The server is currently restarting. Please try again in 15 seconds.'
+            : text.replace(/<[^>]*>?/gm, '').trim().substring(0, 150) || `Server error (${res.status})`
+        );
+      }
+
       if (!res.ok || !data.success) {
         throw new Error(data.message || 'Login failed. Please verify your details.');
       }
 
-      login(data.token, data.user);
+      if (data.token && data.user) {
+        login(data.token, data.user);
+      }
 
-      if (data.user.role === 'recruiter') {
+      if (data.user?.role === 'recruiter') {
         router.push('/recruiter');
       } else {
         router.push('/track');

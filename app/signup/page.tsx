@@ -13,7 +13,7 @@ import {
   HiKey,
   HiShieldCheck,
 } from 'react-icons/hi';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth, AuthUser } from '@/context/AuthContext';
 
 export default function SignupPage() {
   const router = useRouter();
@@ -63,7 +63,21 @@ export default function SignupPage() {
           name: name.trim(),
         }),
       });
-      const data = await res.json();
+
+      const contentType = res.headers.get('content-type') || '';
+      let data: { success?: boolean; message?: string } = {};
+
+      if (contentType.includes('application/json')) {
+        data = await res.json();
+      } else {
+        const text = await res.text();
+        throw new Error(
+          res.status === 502 || res.status === 504 || res.status === 503
+            ? 'The server is currently starting up or restarting. Please try again in 15 seconds.'
+            : text.replace(/<[^>]*>?/gm, '').trim().substring(0, 150) || `Server error (${res.status})`
+        );
+      }
+
       if (!res.ok || !data.success) {
         throw new Error(data.message || 'Failed to dispatch verification code.');
       }
@@ -109,12 +123,27 @@ export default function SignupPage() {
         }),
       });
 
-      const data = await res.json();
+      const contentType = res.headers.get('content-type') || '';
+      let data: { success?: boolean; message?: string; token?: string; user?: AuthUser } = {};
+
+      if (contentType.includes('application/json')) {
+        data = await res.json();
+      } else {
+        const text = await res.text();
+        throw new Error(
+          res.status === 502 || res.status === 504 || res.status === 503
+            ? 'The server is temporarily starting up. Please try again in 15 seconds.'
+            : text.replace(/<[^>]*>?/gm, '').trim().substring(0, 150) || `Server error (${res.status})`
+        );
+      }
+
       if (!res.ok || !data.success) {
         throw new Error(data.message || 'Registration failed. Please verify the code.');
       }
 
-      login(data.token, data.user);
+      if (data.token && data.user) {
+        login(data.token, data.user);
+      }
       router.push('/apply');
     } catch (err: unknown) {
       const error = err as Error;

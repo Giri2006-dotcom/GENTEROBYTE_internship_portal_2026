@@ -628,7 +628,20 @@ const Apply: React.FC = () => {
         body: JSON.stringify({ email: formData.email.trim().toLowerCase() }),
       });
 
-      const data = await response.json();
+      const contentType = response.headers.get('content-type') || '';
+      let data: { success?: boolean; message?: string } = {};
+
+      if (contentType.includes('application/json')) {
+        data = await response.json();
+      } else {
+        const text = await response.text();
+        throw new Error(
+          response.status === 502 || response.status === 504 || response.status === 503
+            ? 'The email service is starting up. Please try again in 15 seconds.'
+            : text.replace(/<[^>]*>?/gm, '').trim().substring(0, 150) || `Server error (${response.status})`
+        );
+      }
+
       if (!response.ok || !data.success) {
         throw new Error(data.message || 'Failed to send OTP');
       }
@@ -667,7 +680,20 @@ const Apply: React.FC = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: formData.email.trim().toLowerCase(), otp }),
       });
-      const data = await response.json();
+
+      const contentType = response.headers.get('content-type') || '';
+      let data: { verified?: boolean; message?: string; token?: string } = {};
+
+      if (contentType.includes('application/json')) {
+        data = await response.json();
+      } else {
+        const text = await response.text();
+        throw new Error(
+          response.status === 502 || response.status === 504 || response.status === 503
+            ? 'Verification service is temporarily busy. Please try again in a few moments.'
+            : text.replace(/<[^>]*>?/gm, '').trim().substring(0, 150) || `Server error (${response.status})`
+        );
+      }
 
       if (response.ok && data.verified) {
         setOtpVerified(true);
