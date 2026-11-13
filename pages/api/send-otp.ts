@@ -87,7 +87,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (result.liveDelivered) {
       return res.status(200).json({
         success: true,
-        message: `A 6-digit verification code has been dispatched directly to your email inbox (${cleanEmail}). Please check your inbox or spam folder.`,
+        message: `A 6-digit verification code has been dispatched directly to your email inbox (${cleanEmail}).`,
         liveDelivered: true,
       });
     }
@@ -95,7 +95,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // If live dispatch failed
     return res.status(502).json({
       success: false,
-      message: `Failed to dispatch verification code to ${cleanEmail}. Please verify that your email address exists and is capable of receiving emails.`,
+      message: `Failed to dispatch verification code to ${cleanEmail}. ${result.error ? `(${result.error})` : 'Please verify that your email address is correct and can receive emails.'}`,
       liveDelivered: false,
     });
   } catch (error: unknown) {

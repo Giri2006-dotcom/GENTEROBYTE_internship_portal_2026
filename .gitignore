@@ -28,6 +28,9 @@ yarn-error.log*
 .env.production
 .env.development
 
+# runtime data
+data/otps.json
+
 # vercel
 .vercel
 

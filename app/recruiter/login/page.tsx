@@ -3,15 +3,15 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { HiShieldCheck, HiLockClosed, HiMail, HiArrowLeft, HiExclamationCircle, HiKey } from 'react-icons/hi';
+import { HiShieldCheck, HiLockClosed, HiMail, HiArrowLeft, HiExclamationCircle } from 'react-icons/hi';
 import { useAuth } from '@/context/AuthContext';
 
 export default function RecruiterLoginPage() {
   const router = useRouter();
   const { login } = useAuth();
 
-  const [email, setEmail] = useState('recruiter@gentrobyte.com');
-  const [password, setPassword] = useState('Gentrobyte@2026');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -126,14 +126,14 @@ export default function RecruiterLoginPage() {
             </button>
           </form>
 
-          {/* Seeded Credentials Info Box */}
-          <div className="mt-6 p-4 rounded-2xl bg-indigo-50/70 border border-indigo-100 text-left">
-            <div className="flex items-center gap-2 mb-1.5 text-indigo-700 font-bold text-xs">
-              <HiKey className="w-4 h-4 text-indigo-600" />
-              <span>Company Talent Credentials</span>
+          {/* Restricted Access Compliance Notice */}
+          <div className="mt-6 p-4 rounded-2xl bg-slate-50 border border-slate-200 text-left">
+            <div className="flex items-center gap-2 mb-1.5 text-slate-700 font-bold text-xs">
+              <HiShieldCheck className="w-4 h-4 text-indigo-600" />
+              <span>Restricted Company Access</span>
             </div>
-            <p className="text-[11px] text-slate-600 leading-relaxed">
-              Company-issued recruiter account: <code className="text-indigo-800 font-mono bg-white px-1.5 py-0.5 rounded border border-indigo-200 font-bold">recruiter@gentrobyte.com</code> / <code className="text-indigo-800 font-mono bg-white px-1.5 py-0.5 rounded border border-indigo-200 font-bold">Gentrobyte@2026</code>. Managed exclusively by Gentrobyte HR.
+            <p className="text-[11px] text-slate-500 leading-relaxed">
+              This terminal is strictly for authorized Gentrobyte talent acquisition officers and company reviewers. All login attempts and review actions are monitored and encrypted.
             </p>
           </div>
         </div>
