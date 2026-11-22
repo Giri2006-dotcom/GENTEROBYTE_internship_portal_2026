@@ -3,7 +3,7 @@ import { findUserByEmail, findUserByName, createUser } from '../../../lib/userSt
 import { signJwt } from '../../../lib/jwt';
 import { checkRateLimit, getClientIp, assertSafeInput } from '../../../lib/security';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const { verifyOtp, isVerified } = require('../../../lib/otpStore');
+const { verifyOtp, isVerified, clearOtp } = require('../../../lib/otpStore');
 
 const EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
 
@@ -83,6 +83,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       role: 'applicant',
       password: password && typeof password === 'string' ? password.trim() : undefined,
     });
+
+    // Clear one-time verification tokens now that account is fully established
+    clearOtp(cleanEmail);
 
     // 6. Issue 7-day signed JWT session
     const token = signJwt(

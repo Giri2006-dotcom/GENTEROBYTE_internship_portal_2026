@@ -96,29 +96,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
     }
 
-    // If live dispatch failed (e.g. Render Free Tier firewall drops SMTP ports 465/587 with timeout)
-    const isNetworkBlocked =
-      !result.liveDelivered &&
-      (!result.error ||
-        result.error.toLowerCase().includes('timeout') ||
-        result.error.toLowerCase().includes('enetunreach') ||
-        result.error.toLowerCase().includes('econnrefused') ||
-        result.error.toLowerCase().includes('greeting') ||
-        process.env.DEV_OTP_FALLBACK === 'true');
-
-    if (isNetworkBlocked) {
+    // If live dispatch failed:
+    // Only return devOtp if DEV_OTP_FALLBACK is explicitly enabled in environment variables
+    if (process.env.DEV_OTP_FALLBACK === 'true') {
       return res.status(200).json({
         success: true,
-        message: `Your verification code is: ${result.otp} (Host blocked direct SMTP; code provided for verification).`,
+        message: `[DEV MODE] Verification code: ${result.otp}`,
         devOtp: result.otp,
         liveDelivered: false,
       });
     }
 
-    return res.status(200).json({
-      success: true,
-      message: `Your verification code is: ${result.otp} (Email dispatch notice: ${result.error}).`,
-      devOtp: result.otp,
+    return res.status(400).json({
+      success: false,
+      message: `Failed to dispatch email directly to ${cleanEmail}: ${result.error || 'Connection timed out'}. Please verify SMTP credentials or deploy where outbound port 465 is open.`,
       liveDelivered: false,
     });
   } catch (error: unknown) {
