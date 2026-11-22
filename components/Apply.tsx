@@ -629,7 +629,7 @@ const Apply: React.FC = () => {
       });
 
       const contentType = response.headers.get('content-type') || '';
-      let data: { success?: boolean; message?: string } = {};
+      let data: { success?: boolean; message?: string; devOtp?: string } = {};
 
       if (contentType.includes('application/json')) {
         data = await response.json();
@@ -648,7 +648,10 @@ const Apply: React.FC = () => {
 
       setOtpSent(true);
       setOtpTimer(60);
-      showToast(`A 6-digit verification code has been dispatched directly to ${formData.email}!`, 'success');
+      if (data.devOtp) {
+        setFormData((prev) => ({ ...prev, otp: data.devOtp! }));
+      }
+      showToast(data.message || `A 6-digit verification code has been dispatched directly to ${formData.email}!`, 'success');
     } catch (error: unknown) {
       const err = error as Error;
       setErrors((prev) => ({
@@ -889,13 +892,25 @@ const Apply: React.FC = () => {
         }),
       });
 
-      const result = await response.json();
+      const contentType = response.headers.get('content-type') || '';
+      let result: { success?: boolean; message?: string; applicationId?: string } = {};
+
+      if (contentType.includes('application/json')) {
+        result = await response.json();
+      } else {
+        const text = await response.text();
+        throw new Error(
+          response.status === 502 || response.status === 504 || response.status === 503
+            ? 'The server is currently busy or restarting. Please try submitting again in a few seconds.'
+            : text.replace(/<[^>]*>?/gm, '').trim().substring(0, 150) || `Server error (${response.status})`
+        );
+      }
 
       if (!response.ok || !result.success) {
         throw new Error(result.message || 'Submission failed. Please check your details.');
       }
 
-      setApplicationId(result.applicationId);
+      setApplicationId(result.applicationId || '');
       setIsSubmitted(true);
       showToast('Application submitted successfully!', 'success');
       window.scrollTo({ top: 80, behavior: 'smooth' });

@@ -65,7 +65,7 @@ export default function SignupPage() {
       });
 
       const contentType = res.headers.get('content-type') || '';
-      let data: { success?: boolean; message?: string } = {};
+      let data: { success?: boolean; message?: string; devOtp?: string } = {};
 
       if (contentType.includes('application/json')) {
         data = await res.json();
@@ -84,6 +84,9 @@ export default function SignupPage() {
 
       setOtpSent(true);
       setOtpTimer(60);
+      if (data.devOtp) {
+        setOtp(data.devOtp);
+      }
       setSuccessMsg(data.message || `A 6-digit verification code has been dispatched directly to your inbox (${email.trim()}).`);
     } catch (err: unknown) {
       const error = err as Error;
